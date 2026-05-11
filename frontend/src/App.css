@@ -1,0 +1,474 @@
+/* App-specific styles */
+
+/* Sidebar styles */
+.sidebar {
+  @apply fixed left-0 top-0 h-full w-64 bg-card border-r z-40 transition-transform duration-200 ease-in-out flex flex-col;
+  transform: translateX(-100%);
+}
+
+/* Desktop: always visible */
+@media (min-width: 768px) {
+  .sidebar {
+    transform: translateX(0);
+  }
+}
+
+/* Mobile: visible when open */
+.sidebar.sidebar-open {
+  transform: translateX(0);
+}
+
+.sidebar-item {
+  @apply flex items-center gap-3 px-4 py-2.5 text-muted-foreground rounded-lg mx-2 my-0.5 transition-all duration-150;
+}
+
+.sidebar-item:hover {
+  @apply bg-muted text-foreground;
+}
+
+.sidebar-item.active {
+  @apply bg-primary text-primary-foreground font-medium shadow-sm;
+}
+
+.sidebar-item.active:hover {
+  @apply bg-primary/90;
+}
+
+/* Main content area */
+.main-content {
+  @apply ml-0 md:ml-64 min-h-screen transition-all duration-200;
+}
+
+/* Page header */
+.page-header {
+  @apply flex flex-col gap-4 md:flex-row md:items-center md:justify-between pb-6;
+}
+
+.page-title {
+  @apply text-2xl md:text-3xl font-bold tracking-tight;
+}
+
+/* Stats cards */
+.stat-card {
+  @apply p-6 bg-card rounded-xl border shadow-sm;
+  transition: box-shadow 0.2s, transform 0.2s;
+}
+
+.stat-card:hover {
+  @apply shadow-md;
+  transform: translateY(-2px);
+}
+
+.stat-value {
+  @apply text-xl md:text-2xl font-bold tracking-tight tabular-nums;
+}
+
+.stat-label {
+  @apply text-xs text-muted-foreground uppercase tracking-wider font-medium;
+}
+
+@media (min-width: 768px) {
+  .stat-label {
+    @apply text-sm normal-case tracking-normal;
+  }
+}
+
+/* Data tables */
+.data-table {
+  @apply w-full;
+}
+
+.data-table th {
+  @apply text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-4 py-3 bg-muted/50;
+}
+
+.data-table td {
+  @apply px-4 py-3 text-sm border-t;
+}
+
+.data-table tr:hover td {
+  @apply bg-muted/30;
+}
+
+/* Form styles */
+.form-section {
+  @apply space-y-4 p-6 bg-card rounded-xl border;
+}
+
+.form-label {
+  @apply text-sm font-medium text-foreground;
+}
+
+.form-description {
+  @apply text-xs text-muted-foreground mt-1;
+}
+
+/* Transaction type badges */
+.type-badge {
+  @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
+}
+
+.type-badge.type-01 {
+  @apply bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400;
+}
+
+.type-badge.type-02 {
+  @apply bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400;
+}
+
+/* Gateway health indicators */
+.health-indicator {
+  @apply w-2 h-2 rounded-full;
+}
+
+.health-indicator.healthy {
+  @apply bg-emerald-500;
+}
+
+.health-indicator.low {
+  @apply bg-amber-500;
+}
+
+.health-indicator.critical {
+  @apply bg-red-500;
+}
+
+/* Currency display */
+.currency {
+  font-variant-numeric: tabular-nums;
+}
+
+.currency-positive {
+  @apply text-emerald-600 dark:text-emerald-400;
+}
+
+.currency-negative {
+  @apply text-red-600 dark:text-red-400;
+}
+
+/* Empty state */
+.empty-state {
+  @apply flex flex-col items-center justify-center py-12 text-center;
+}
+
+.empty-state-icon {
+  @apply w-12 h-12 text-muted-foreground/50 mb-4;
+}
+
+.empty-state-title {
+  @apply text-lg font-medium text-foreground mb-1;
+}
+
+.empty-state-description {
+  @apply text-sm text-muted-foreground max-w-sm;
+}
+
+/* Mobile menu overlay */
+.mobile-overlay {
+  @apply fixed inset-0 bg-black/50 z-30 md:hidden transition-opacity duration-200;
+}
+
+/* Skeleton loading animation */
+.skeleton {
+  @apply bg-muted animate-pulse rounded;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.skeleton-shimmer {
+  background: linear-gradient(90deg, 
+    hsl(var(--muted)) 0%, 
+    hsl(var(--muted-foreground) / 0.1) 50%, 
+    hsl(var(--muted)) 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+/* Responsive utilities */
+@media (max-width: 768px) {
+  .hide-mobile {
+    display: none !important;
+  }
+  
+  /* Mobile-friendly touch targets */
+  button, a, [role="button"] {
+    min-height: 44px;
+  }
+  
+  /* Improve table readability on mobile */
+  table {
+    font-size: 0.875rem;
+  }
+  
+  /* Stack filters on mobile */
+  .filter-row {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  
+  /* Full-width buttons on mobile */
+  .btn-mobile-full {
+    width: 100%;
+  }
+}
+
+@media (min-width: 769px) {
+  .hide-desktop {
+    display: none !important;
+  }
+}
+
+/* Scrollbar styling for tables */
+.scrollbar-thin {
+  scrollbar-width: thin;
+}
+
+.scrollbar-thin::-webkit-scrollbar {
+  height: 6px;
+  width: 6px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background-color: hsl(var(--muted-foreground) / 0.3);
+  border-radius: 3px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb:hover {
+  background-color: hsl(var(--muted-foreground) / 0.5);
+}
+
+/* Mobile table scroll hint */
+@media (max-width: 768px) {
+  .table-scroll-hint {
+    position: relative;
+  }
+  
+  .table-scroll-hint::after {
+    content: '';
+    position: absolute;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    width: 40px;
+    background: linear-gradient(to left, hsl(var(--background)), transparent);
+    pointer-events: none;
+  }
+}
+
+/* OTP input styles */
+.otp-input-group {
+  @apply flex gap-2 justify-center;
+}
+
+.otp-input {
+  @apply w-12 h-14 text-center text-2xl font-bold border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary;
+}
+
+/* Login page */
+.login-bg {
+  background-image: url('https://images.unsplash.com/photo-1495576775051-8af0d10f19b1?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1ODR8MHwxfHNlYXJjaHwxfHxtb2Rlcm4lMjBtaW5pbWFsJTIwb2ZmaWNlJTIwYXJjaGl0ZWN0dXJlJTIwYnJpZ2h0fGVufDB8fHx8MTc3MDMxNDk0N3ww&ixlib=rb-4.1.0&q=85');
+  background-size: cover;
+  background-position: center;
+}
+
+/* Blacklist warning */
+.blacklist-warning {
+  @apply bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg dark:bg-red-900/20 dark:border-red-800 dark:text-red-400;
+}
+
+/* Suggestion cards */
+.suggestion-card {
+  @apply p-4 border rounded-lg cursor-pointer transition-all duration-150;
+}
+
+.suggestion-card:hover {
+  @apply border-primary bg-primary/5;
+}
+
+.suggestion-card.selected {
+  @apply border-primary bg-primary/10 ring-2 ring-primary ring-offset-2;
+}
+
+.suggestion-card.best {
+  @apply border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20;
+}
+
+/* Mobile-optimized styles */
+@media (max-width: 640px) {
+  /* Compact stat cards on mobile */
+  .stat-card {
+    @apply p-4;
+  }
+  
+  .stat-value {
+    @apply text-xl;
+  }
+  
+  /* Stack buttons vertically on mobile */
+  .button-group-mobile {
+    @apply flex flex-col gap-2 w-full;
+  }
+  
+  .button-group-mobile > button {
+    @apply w-full justify-center;
+  }
+  
+  /* Scroll tables horizontally */
+  .table-container {
+    @apply overflow-x-auto -mx-4 px-4;
+  }
+  
+  /* Compact form inputs */
+  .form-section {
+    @apply p-4;
+  }
+  
+  /* Larger touch targets */
+  .touch-target {
+    @apply min-h-[44px] min-w-[44px];
+  }
+  
+  /* Bottom action bar for mobile */
+  .mobile-action-bar {
+    @apply fixed bottom-0 left-0 right-0 bg-card border-t p-4 z-50 safe-area-pb;
+  }
+  
+  /* Floating action button */
+  .fab {
+    @apply fixed bottom-6 right-6 w-14 h-14 rounded-full shadow-lg flex items-center justify-center z-40;
+  }
+  
+  /* Cards grid responsive */
+  .cards-grid {
+    @apply grid grid-cols-1 gap-3;
+  }
+  
+  /* Dialog full width on mobile */
+  .dialog-mobile-full {
+    @apply w-full max-w-full m-0 rounded-none min-h-screen;
+  }
+}
+
+/* Safe area padding for notched devices */
+.safe-area-pb {
+  padding-bottom: env(safe-area-inset-bottom, 16px);
+}
+
+.safe-area-pt {
+  padding-top: env(safe-area-inset-top, 16px);
+}
+
+/* Pull to refresh indicator */
+.pull-indicator {
+  @apply flex items-center justify-center py-4 text-muted-foreground;
+}
+
+/* Swipe actions */
+.swipe-action {
+  @apply flex items-center justify-center min-w-[80px] text-white font-medium;
+}
+
+.swipe-action-delete {
+  @apply bg-red-500;
+}
+
+.swipe-action-edit {
+  @apply bg-blue-500;
+}
+
+/* Quick entry mode for mobile */
+.quick-entry-header {
+  @apply sticky top-0 bg-background z-10 p-4 border-b;
+}
+
+/* Mobile number pad */
+.numpad {
+  @apply grid grid-cols-3 gap-2 p-4;
+}
+
+.numpad-key {
+  @apply h-14 text-xl font-semibold rounded-lg bg-muted hover:bg-muted/80 transition-colors;
+}
+
+.numpad-key-action {
+  @apply bg-primary text-primary-foreground hover:bg-primary/90;
+}
+
+/* Additional mobile optimizations */
+
+/* Hide keyboard shortcuts hint on mobile */
+@media (max-width: 768px) {
+  .keyboard-hint {
+    @apply hidden;
+  }
+}
+
+/* Mobile-friendly dialogs */
+@media (max-width: 640px) {
+  [role="dialog"] {
+    max-width: 95vw !important;
+    max-height: 90vh !important;
+  }
+  
+  /* Ensure select dropdowns are large enough */
+  [role="listbox"] [role="option"] {
+    @apply min-h-[44px] py-3;
+  }
+}
+
+/* Touch-friendly table rows */
+@media (max-width: 768px) {
+  .data-table tr {
+    @apply min-h-[48px];
+  }
+  
+  .data-table td {
+    @apply py-3;
+  }
+}
+
+/* Bottom nav safe area */
+.has-bottom-nav {
+  padding-bottom: calc(64px + env(safe-area-inset-bottom, 0px));
+}
+
+/* Mobile-optimized badges */
+@media (max-width: 640px) {
+  .badge-sm {
+    @apply text-[10px] px-1.5 py-0.5;
+  }
+}
+
+/* Responsive text that doesn't get too small */
+.text-responsive {
+  @apply text-sm sm:text-xs;
+}
+
+/* Mobile scroll indicator for tables */
+.table-scroll-indicator {
+  @apply relative;
+}
+
+.table-scroll-indicator::after {
+  content: '';
+  @apply absolute right-0 top-0 bottom-0 w-8 pointer-events-none;
+  background: linear-gradient(to right, transparent, var(--background));
+}
+
+@media (min-width: 768px) {
+  .table-scroll-indicator::after {
+    display: none;
+  }
+}

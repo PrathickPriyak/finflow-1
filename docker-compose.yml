@@ -1,0 +1,82 @@
+# Fin Flow - Docker Compose
+# Usage: docker-compose up -d
+#
+# Environment Variables (set in .env or export):
+#   PORT          - Frontend port (default: 80)
+#   JWT_SECRET    - Secret key for JWT tokens (REQUIRED - change this!)
+#   DEV_MODE      - Enable dev mode (default: false)
+#   CORS_ORIGINS  - Allowed CORS origins (default: *)
+#
+# Example with custom port:
+#   PORT=8080 docker-compose up -d --build
+
+services:
+  mongo:
+    image: mongo:6
+    container_name: finflow-mongo
+    restart: unless-stopped
+    volumes:
+      - mongo_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  migrate:
+    build: ./backend
+    container_name: finflow-migrate
+    environment:
+      - MONGO_URL=mongodb://mongo:27017
+      - DB_NAME=${DB_NAME:-finflow}
+      - DEFAULT_ADMIN_EMAIL=${DEFAULT_ADMIN_EMAIL:-}
+      - DEFAULT_ADMIN_PASSWORD=${DEFAULT_ADMIN_PASSWORD:-}
+    command: python migrate.py
+    depends_on:
+      mongo:
+        condition: service_healthy
+    restart: "no"
+
+  backend:
+    build: ./backend
+    container_name: finflow-backend
+    restart: unless-stopped
+    environment:
+      - DOCKER_ENV=true
+      - MONGO_URL=mongodb://mongo:27017
+      - DB_NAME=${DB_NAME:-finflow}
+      - JWT_SECRET=${JWT_SECRET:-}
+      - DEV_MODE=${DEV_MODE:-false}
+      - CORS_ORIGINS=${CORS_ORIGINS:-*}
+      - LOG_FORMAT=${LOG_FORMAT:-json}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - SMTP_HOST=${SMTP_HOST:-}
+      - SMTP_PORT=${SMTP_PORT:-465}
+      - SMTP_USER=${SMTP_USER:-}
+      - SMTP_PASSWORD=${SMTP_PASSWORD:-}
+      - SMTP_FROM=${SMTP_FROM:-}
+      - SMTP_SSL=${SMTP_SSL:-true}
+    depends_on:
+      mongo:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8001/api/health')"]
+      interval: 30s
+      timeout: 10s
+      start_period: 10s
+      retries: 3
+
+  frontend:
+    build:
+      context: ./frontend
+    container_name: finflow-frontend
+    restart: unless-stopped
+    ports:
+      - "${PORT:-80}:80"
+    depends_on:
+      - backend
+
+volumes:
+  mongo_data:

@@ -1,0 +1,48 @@
+# Git
+.git
+.gitignore
+
+# IDE
+.idea
+.vscode
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Test files
+test_reports/
+__pycache__/
+*.pyc
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Node
+node_modules/
+npm-debug.log
+yarn-error.log
+
+# Build artifacts (frontend)
+build/
+dist/
+
+# Environment files (use docker-compose env)
+.env
+.env.local
+.env.development
+.env.production
+
+# Documentation
+*.md
+!README.md
+
+# Memory/state files
+memory/
+.emergent/

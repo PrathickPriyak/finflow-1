@@ -28,8 +28,9 @@ if not MONGO_URL:
 if not DB_NAME:
     raise ValueError("DB_NAME environment variable is required")
 
-# Default admin from ENV — required only on first bootstrap (no SuperAdmin user yet).
-# Redeployments often omit these; do not fail at import time (see create_admin_user).
+# Default admin from ENV. If both are empty on first install, migrate auto-generates
+# credentials (see migrate.py / deploy logs). FINFLOW_BOOTSTRAP_ADMIN_EMAIL overrides
+# the default email for that path. Redeploy with empty vars skips if SuperAdmin exists.
 DEFAULT_ADMIN_EMAIL = (os.environ.get("DEFAULT_ADMIN_EMAIL") or "").strip()
 DEFAULT_ADMIN_PASSWORD = os.environ.get("DEFAULT_ADMIN_PASSWORD") or ""
 
@@ -335,85 +336,101 @@ async def create_admin_user(db, role):
     - Updates both email and password if they change
     - On redeploy, DEFAULT_ADMIN_* may be unset if the host does not inject .env;
       if a SuperAdmin user already exists, bootstrap is skipped (no error).
+    - On first install with both DEFAULT_ADMIN_* unset, creates SuperAdmin with
+      auto-generated credentials (see logs). Override email via FINFLOW_BOOTSTRAP_ADMIN_EMAIL.
     """
     print("Setting up SuperAdmin user...")
 
     # Find existing SuperAdmin by ROLE (not email) - ensures only 1 SuperAdmin
     existing = await db.users.find_one({"role_id": role["id"]})
 
-    missing_email = not DEFAULT_ADMIN_EMAIL
-    missing_password = not DEFAULT_ADMIN_PASSWORD
-    if missing_email or missing_password:
-        if existing:
+    env_email = DEFAULT_ADMIN_EMAIL
+    env_password = DEFAULT_ADMIN_PASSWORD
+    have_both = bool(env_email and env_password)
+    have_any = bool(env_email or env_password)
+
+    if existing:
+        if not have_both:
             print(
                 "  DEFAULT_ADMIN_EMAIL / DEFAULT_ADMIN_PASSWORD not set — "
                 "SuperAdmin already exists; skipping user bootstrap (OK for redeploy)."
             )
             return
-        print("ERROR: First-time setup requires both environment variables:")
-        if missing_email:
-            print("  - DEFAULT_ADMIN_EMAIL (non-empty)")
-        if missing_password:
-            print("  - DEFAULT_ADMIN_PASSWORD (non-empty, see strength rules below)")
-        print("Set them in your host panel, .env, or docker-compose `environment` for migrate.")
-        print("Password must have: 12+ chars, uppercase, digit, special character.")
-        sys.exit(1)
+        is_valid, errors = validate_password_strength(env_password)
+        if not is_valid:
+            print("ERROR: DEFAULT_ADMIN_PASSWORD does not meet requirements:")
+            print(f"       Needs {', '.join(errors)}")
+            sys.exit(1)
 
-    # Validate password strength when we will create or compare/update from ENV
-    is_valid, errors = validate_password_strength(DEFAULT_ADMIN_PASSWORD)
-    if not is_valid:
-        print("ERROR: DEFAULT_ADMIN_PASSWORD does not meet requirements:")
-        print(f"       Needs {', '.join(errors)}")
-        sys.exit(1)
-    
-    if existing:
-        old_email = existing.get('email')
+        old_email = existing.get("email")
         needs_update = False
         updates = {"updated_at": datetime.now(timezone.utc).isoformat()}
-        
-        # Check if email changed
-        if old_email != DEFAULT_ADMIN_EMAIL:
-            updates["email"] = DEFAULT_ADMIN_EMAIL
+
+        if old_email != env_email:
+            updates["email"] = env_email
             needs_update = True
-            print(f"  Email change detected: {old_email} → {DEFAULT_ADMIN_EMAIL}")
-        
-        # Check if password changed
-        if not verify_password(DEFAULT_ADMIN_PASSWORD, existing.get('password_hash', '')):
-            updates["password_hash"] = hash_password(DEFAULT_ADMIN_PASSWORD)
+            print(f"  Email change detected: {old_email} → {env_email}")
+
+        if not verify_password(env_password, existing.get("password_hash", "")):
+            updates["password_hash"] = hash_password(env_password)
             needs_update = True
             print("  Password change detected")
-        
+
         if needs_update:
-            await db.users.update_one(
-                {"role_id": role["id"]},
-                {"$set": updates}
-            )
-            print(f"✓ SuperAdmin updated ({DEFAULT_ADMIN_EMAIL})")
+            await db.users.update_one({"role_id": role["id"]}, {"$set": updates})
+            print(f"✓ SuperAdmin updated ({env_email})")
         else:
-            print(f"✓ SuperAdmin already up-to-date ({DEFAULT_ADMIN_EMAIL})")
+            print(f"✓ SuperAdmin already up-to-date ({env_email})")
         return
-    
-    # Create new SuperAdmin user
+
+    # No SuperAdmin user yet — first install
+    if have_any and not have_both:
+        print("ERROR: Set both DEFAULT_ADMIN_EMAIL and DEFAULT_ADMIN_PASSWORD, or omit both for auto-bootstrap.")
+        sys.exit(1)
+
+    if have_both:
+        is_valid, errors = validate_password_strength(env_password)
+        if not is_valid:
+            print("ERROR: DEFAULT_ADMIN_PASSWORD does not meet requirements:")
+            print(f"       Needs {', '.join(errors)}")
+            sys.exit(1)
+        admin_email = env_email
+        admin_password = env_password
+        password_source = "env"
+    else:
+        admin_email = (os.environ.get("FINFLOW_BOOTSTRAP_ADMIN_EMAIL") or "admin@finflow.local").strip()
+        admin_password = generate_secure_password(20)
+        password_source = "auto-generated"
+        print("=" * 60)
+        print("FIRST-TIME BOOTSTRAP: DEFAULT_ADMIN_EMAIL / DEFAULT_ADMIN_PASSWORD not set.")
+        print("SuperAdmin created with auto-generated password. Save it; rotate after first login.")
+        print(f"  Email:    {admin_email}")
+        print(f"  Password: {admin_password}")
+        print("(Optional: set DEFAULT_ADMIN_* on the host to control credentials instead.)")
+        print("=" * 60)
+
     user = {
         "id": str(uuid.uuid4()),
-        "email": DEFAULT_ADMIN_EMAIL,
-        "password_hash": hash_password(DEFAULT_ADMIN_PASSWORD),
+        "email": admin_email,
+        "password_hash": hash_password(admin_password),
         "name": "Administrator",
         "phone": "",
         "role_id": role["id"],
         "is_active": True,
         "is_deleted": False,
         "created_at": datetime.now(timezone.utc).isoformat(),
-        "updated_at": datetime.now(timezone.utc).isoformat()
+        "updated_at": datetime.now(timezone.utc).isoformat(),
     }
-    
+
     await db.users.insert_one(user)
-    print("=" * 60)
-    print("SUPERADMIN ACCOUNT CREATED")
-    print(f"Email: {DEFAULT_ADMIN_EMAIL}")
-    print("Password: (set from DEFAULT_ADMIN_PASSWORD env)")
-    print("=" * 60)
-    print("=" * 60)
+    if password_source == "env":
+        print("=" * 60)
+        print("SUPERADMIN ACCOUNT CREATED")
+        print(f"Email: {admin_email}")
+        print("Password: (set from DEFAULT_ADMIN_PASSWORD env)")
+        print("=" * 60)
+    else:
+        print("✓ SuperAdmin created (credentials printed above)")
 
 
 async def create_default_expense_types(db):

@@ -23,32 +23,19 @@ services:
       timeout: 5s
       retries: 5
 
-  migrate:
-    build: ./backend
-    container_name: finflow-migrate
-    # First deploy: set DEFAULT_ADMIN_EMAIL + DEFAULT_ADMIN_PASSWORD (12+ chars, upper, digit, special),
-    # or leave both unset — migrate auto-generates a SuperAdmin and prints it in logs.
-    # Optional: FINFLOW_BOOTSTRAP_ADMIN_EMAIL for auto-bootstrap email (default admin@finflow.local).
-    # Redeploys can omit admin vars if Mongo volume already has a SuperAdmin.
-    environment:
-      - MONGO_URL=mongodb://mongo:27017
-      - DB_NAME=${DB_NAME:-finflow}
-      - DEFAULT_ADMIN_EMAIL=${DEFAULT_ADMIN_EMAIL:-}
-      - DEFAULT_ADMIN_PASSWORD=${DEFAULT_ADMIN_PASSWORD:-}
-    command: python migrate.py
-    depends_on:
-      mongo:
-        condition: service_healthy
-    restart: "no"
-
   backend:
     build: ./backend
     container_name: finflow-backend
     restart: unless-stopped
+    # Migrations run inside the backend container on startup (see backend Dockerfile CMD).
+    # SuperAdmin: set both DEFAULT_ADMIN_* or omit for auto-bootstrap (credentials in backend logs).
     environment:
       - DOCKER_ENV=true
       - MONGO_URL=mongodb://mongo:27017
       - DB_NAME=${DB_NAME:-finflow}
+      - DEFAULT_ADMIN_EMAIL=${DEFAULT_ADMIN_EMAIL:-}
+      - DEFAULT_ADMIN_PASSWORD=${DEFAULT_ADMIN_PASSWORD:-}
+      - FINFLOW_BOOTSTRAP_ADMIN_EMAIL=${FINFLOW_BOOTSTRAP_ADMIN_EMAIL:-}
       - JWT_SECRET=${JWT_SECRET:-}
       - DEV_MODE=${DEV_MODE:-false}
       - CORS_ORIGINS=${CORS_ORIGINS:-*}
@@ -63,14 +50,12 @@ services:
     depends_on:
       mongo:
         condition: service_healthy
-      migrate:
-        condition: service_completed_successfully
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8001/api/health')"]
       interval: 30s
       timeout: 10s
-      start_period: 10s
-      retries: 3
+      start_period: 120s
+      retries: 5
 
   frontend:
     build:

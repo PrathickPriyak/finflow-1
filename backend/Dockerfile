@@ -11,13 +11,14 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
+# Migrations then API (single process — avoids a separate migrate container showing "Exited" in UIs)
 # Change ownership and switch to non-root user
 RUN chown -R appuser:appuser /app
 USER appuser
 
 EXPOSE 8001
 
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+HEALTHCHECK --interval=30s --timeout=10s --start-period=120s --retries=3 \
     CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8001/api/health')" || exit 1
 
-CMD ["uvicorn", "server:app", "--host", "0.0.0.0", "--port", "8001"]
+CMD ["sh", "-c", "set -e && echo 'Running database migrations...' && python migrate.py && echo 'Starting API server...' && exec uvicorn server:app --host 0.0.0.0 --port 8001"]

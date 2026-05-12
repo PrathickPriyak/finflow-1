@@ -32,7 +32,7 @@ if not DB_NAME:
 # credentials (see migrate.py / deploy logs). FINFLOW_BOOTSTRAP_ADMIN_EMAIL overrides
 # the default email for that path. Redeploy with empty vars skips if SuperAdmin exists.
 DEFAULT_ADMIN_EMAIL = (os.environ.get("DEFAULT_ADMIN_EMAIL") or "").strip()
-DEFAULT_ADMIN_PASSWORD = os.environ.get("DEFAULT_ADMIN_PASSWORD") or ""
+DEFAULT_ADMIN_PASSWORD = (os.environ.get("DEFAULT_ADMIN_PASSWORD") or "").strip()
 
 # Migration version
 MIGRATION_VERSION = "3.0.0"
@@ -347,7 +347,6 @@ async def create_admin_user(db, role):
     env_email = DEFAULT_ADMIN_EMAIL
     env_password = DEFAULT_ADMIN_PASSWORD
     have_both = bool(env_email and env_password)
-    have_any = bool(env_email or env_password)
 
     if existing:
         if not have_both:
@@ -383,12 +382,10 @@ async def create_admin_user(db, role):
             print(f"✓ SuperAdmin already up-to-date ({env_email})")
         return
 
-    # No SuperAdmin user yet — first install
-    if have_any and not have_both:
-        print("ERROR: Set both DEFAULT_ADMIN_EMAIL and DEFAULT_ADMIN_PASSWORD, or omit both for auto-bootstrap.")
-        sys.exit(1)
+    # No SuperAdmin user yet — first install (merge partial env: email-only or password-only OK)
+    bootstrap_email = (os.environ.get("FINFLOW_BOOTSTRAP_ADMIN_EMAIL") or "admin@finflow.local").strip()
 
-    if have_both:
+    if env_email and env_password:
         is_valid, errors = validate_password_strength(env_password)
         if not is_valid:
             print("ERROR: DEFAULT_ADMIN_PASSWORD does not meet requirements:")
@@ -398,16 +395,36 @@ async def create_admin_user(db, role):
         admin_password = env_password
         password_source = "env"
     else:
-        admin_email = (os.environ.get("FINFLOW_BOOTSTRAP_ADMIN_EMAIL") or "admin@finflow.local").strip()
-        admin_password = generate_secure_password(20)
-        password_source = "auto-generated"
-        print("=" * 60)
-        print("FIRST-TIME BOOTSTRAP: DEFAULT_ADMIN_EMAIL / DEFAULT_ADMIN_PASSWORD not set.")
-        print("SuperAdmin created with auto-generated password. Save it; rotate after first login.")
-        print(f"  Email:    {admin_email}")
-        print(f"  Password: {admin_password}")
-        print("(Optional: set DEFAULT_ADMIN_* on the host to control credentials instead.)")
-        print("=" * 60)
+        admin_email = env_email or bootstrap_email
+        admin_password = env_password or generate_secure_password(20)
+        if env_password:
+            is_valid, errors = validate_password_strength(env_password)
+            if not is_valid:
+                print("ERROR: DEFAULT_ADMIN_PASSWORD does not meet requirements:")
+                print(f"       Needs {', '.join(errors)}")
+                sys.exit(1)
+        if env_email and not env_password:
+            password_source = "auto-generated"
+            print(
+                f"NOTE: DEFAULT_ADMIN_PASSWORD not set — generated password for {admin_email}"
+            )
+        elif env_password and not env_email:
+            password_source = "password-only"
+            print(
+                f"NOTE: DEFAULT_ADMIN_EMAIL not set — using bootstrap email {admin_email}"
+            )
+        else:
+            password_source = "auto-generated"
+            print("FIRST-TIME BOOTSTRAP: DEFAULT_ADMIN_EMAIL / DEFAULT_ADMIN_PASSWORD not set.")
+            print("SuperAdmin will use bootstrap email and a generated password (see below).")
+
+        if password_source != "env":
+            print("=" * 60)
+            print("SUPERADMIN — save these credentials; rotate after first login.")
+            print(f"  Email:    {admin_email}")
+            print(f"  Password: {admin_password}")
+            print("(Optional: set both DEFAULT_ADMIN_* on the host to supply your own.)")
+            print("=" * 60)
 
     user = {
         "id": str(uuid.uuid4()),
@@ -745,11 +762,17 @@ async def check_only():
 
 
 if __name__ == "__main__":
+    import traceback
+
     parser = argparse.ArgumentParser(description="Fin Flow Database Migration")
     parser.add_argument("--check", action="store_true", help="Check migration status only")
     args = parser.parse_args()
-    
-    if args.check:
-        asyncio.run(check_only())
-    else:
-        asyncio.run(run_migrations())
+
+    try:
+        if args.check:
+            asyncio.run(check_only())
+        else:
+            asyncio.run(run_migrations())
+    except Exception:
+        traceback.print_exc()
+        sys.exit(1)

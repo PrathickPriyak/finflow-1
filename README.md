@@ -57,22 +57,23 @@ See `.env.example` for all available options. Key variables:
 | Variable | Required | Description |
 |----------|----------|-------------|
 | `JWT_SECRET` | Yes | JWT signing secret (`openssl rand -hex 32`) |
-| `DEFAULT_ADMIN_EMAIL` | Yes | SuperAdmin email |
-| `DEFAULT_ADMIN_PASSWORD` | Yes | SuperAdmin password (12+ chars, uppercase, number, special) |
+| `DEFAULT_ADMIN_EMAIL` | No* | SuperAdmin email (*first install: optional if you accept auto-bootstrap; see backend logs) |
+| `DEFAULT_ADMIN_PASSWORD` | No* | SuperAdmin password (12+ chars, uppercase, number, special when set manually) |
 | `DEV_MODE` | No | `true` shows OTP on screen (default: `false`) |
 | `CORS_ORIGINS` | No | Allowed origins (default: `*`) |
 | `PORT` | No | Frontend port (default: `80`) |
 
 ## What Happens on Startup
 
-The `migrate` container automatically:
+The **backend** container runs migrations on each startup (before serving traffic), then:
+
 1. Renames any legacy collections (upgrades from older versions)
 2. Creates database indexes (30+ indexes across all collections)
 3. Creates default modules, roles, expense types, card networks, bank payment types
-4. Creates/updates SuperAdmin account from environment variables
+4. Creates/updates SuperAdmin from `DEFAULT_ADMIN_*` when set, or auto-generates credentials (printed in backend logs)
 5. Fixes any stale data fields
 
-No manual database setup required.
+No separate migrate service or manual database setup required.
 
 ## Docker Deployment
 

@@ -34,13 +34,12 @@ open http://localhost:8080
 | Service | Description |
 |---------|-------------|
 | frontend | React app served by Nginx (configurable port, default: 80) |
-| backend | FastAPI server (internal port 8001) |
+| backend | FastAPI server (internal port 8001); runs DB migrations on startup |
 | mongo | MongoDB 6 database (internal only, no published ports) |
-| migrate | One-time database setup (v3.0.0) |
 
 ## Network Security
 
-MongoDB runs on an **isolated Docker network** with no published ports. Only the backend and migrate containers can reach it. Other Docker Compose projects on the same server cannot access it — each project gets its own network.
+MongoDB runs on an **isolated Docker network** with no published ports. Only the **backend** container reaches it. Other Docker Compose projects on the same server cannot access it — each project gets its own network.
 
 No database credentials are needed because MongoDB is only accessible within the `finflow_default` network.
 
@@ -65,7 +64,7 @@ CORS_ORIGINS=https://your-domain.com
 LOG_FORMAT=json
 LOG_LEVEL=INFO
 
-# Default admin account (REQUIRED)
+# Default admin (optional on first install — omit both for auto-generated credentials in backend logs)
 DEFAULT_ADMIN_EMAIL=admin@yourdomain.com
 DEFAULT_ADMIN_PASSWORD=YourSecurePassword123!
 
@@ -86,14 +85,14 @@ SMTP_SSL=true
 
 ## Database Migration
 
-Migration runs automatically on first start. Manual commands:
+Migrations run automatically when the **backend** container starts (before the API binds to port 8001). Manual commands while the stack is running:
 
 ```bash
-# Run migrations only
-docker-compose run --rm migrate python migrate.py
+# Run migrations again (idempotent)
+docker compose exec finflow-backend python migrate.py
 
 # Check status
-docker-compose run --rm migrate python migrate.py --check
+docker compose exec finflow-backend python migrate.py --check
 ```
 
 ## Cloudflare Tunnel Setup
@@ -209,9 +208,12 @@ docker-compose restart backend
 
 ### Migration failed
 ```bash
-# Run migration manually
-docker-compose run --rm migrate python migrate.py
+# Check backend logs (migrations run at backend startup)
+docker-compose logs finflow-backend
+
+# Run migration manually while stack is up
+docker compose exec finflow-backend python migrate.py
 
 # Check migration status
-docker-compose run --rm migrate python migrate.py --check
+docker compose exec finflow-backend python migrate.py --check
 ```

@@ -3,7 +3,7 @@
 #
 # Environment Variables (set in .env or export):
 #   PORT          - Frontend port (default: 80)
-#   JWT_SECRET    - Secret key for JWT tokens (REQUIRED - change this!)
+#   JWT_SECRET    - Recommended: stable sessions across restarts (auto-generated if unset)
 #   DEV_MODE      - Enable dev mode (default: false)
 #   CORS_ORIGINS  - Allowed CORS origins (default: *)
 #
@@ -36,6 +36,7 @@ services:
       - DEFAULT_ADMIN_EMAIL=${DEFAULT_ADMIN_EMAIL:-}
       - DEFAULT_ADMIN_PASSWORD=${DEFAULT_ADMIN_PASSWORD:-}
       - FINFLOW_BOOTSTRAP_ADMIN_EMAIL=${FINFLOW_BOOTSTRAP_ADMIN_EMAIL:-}
+      # Optional: if unset, backend auto-generates (sessions reset on restart — set for production)
       - JWT_SECRET=${JWT_SECRET:-}
       - DEV_MODE=${DEV_MODE:-false}
       - CORS_ORIGINS=${CORS_ORIGINS:-*}
@@ -65,7 +66,8 @@ services:
     ports:
       - "${PORT:-80}:80"
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
 
 volumes:
   mongo_data:

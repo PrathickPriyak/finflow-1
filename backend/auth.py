@@ -5,6 +5,7 @@ Email + OTP based authentication with single session
 import os
 import random
 import string
+import secrets
 import aiosmtplib
 import logging
 from email.mime.text import MIMEText
@@ -35,15 +36,16 @@ security = HTTPBearer(auto_error=False)
 # Cookie name for httpOnly auth token
 AUTH_COOKIE_NAME = "finflow_session"
 
-# JWT Configuration - MUST be set in environment, no default allowed
-JWT_SECRET = os.environ.get("JWT_SECRET")
-if not JWT_SECRET:
-    dev_mode = os.environ.get("DEV_MODE", "false").lower() == "true"
-    if not dev_mode:
-        raise RuntimeError("JWT_SECRET environment variable is required in production. Set it with: export JWT_SECRET=$(openssl rand -hex 32)")
-    import secrets
-    JWT_SECRET = secrets.token_hex(32)
-    logger.warning("JWT_SECRET not set — using auto-generated secret. All sessions will be invalidated on restart.")
+# JWT: if unset (common on PaaS without .env), generate at startup so the app boots.
+# Set JWT_SECRET on the host so sessions survive backend restarts.
+_raw_jwt = (os.environ.get("JWT_SECRET") or "").strip()
+if not _raw_jwt:
+    _raw_jwt = secrets.token_hex(32)
+    logger.warning(
+        "JWT_SECRET is not set — using an auto-generated secret. "
+        "Sessions are invalidated when the backend restarts; set JWT_SECRET for stable production logins."
+    )
+JWT_SECRET = _raw_jwt
 
 JWT_ALGORITHM = "HS256"
 

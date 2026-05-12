@@ -28,19 +28,10 @@ if not MONGO_URL:
 if not DB_NAME:
     raise ValueError("DB_NAME environment variable is required")
 
-# Default admin from ENV (REQUIRED)
-DEFAULT_ADMIN_EMAIL = os.environ.get('DEFAULT_ADMIN_EMAIL')
-DEFAULT_ADMIN_PASSWORD = os.environ.get('DEFAULT_ADMIN_PASSWORD')
-
-if not DEFAULT_ADMIN_EMAIL:
-    print("ERROR: DEFAULT_ADMIN_EMAIL environment variable is required")
-    print("Please set it in your .env file or docker-compose environment")
-    sys.exit(1)
-
-if not DEFAULT_ADMIN_PASSWORD:
-    print("ERROR: DEFAULT_ADMIN_PASSWORD environment variable is required")
-    print("Please set it in your .env file or docker-compose environment")
-    sys.exit(1)
+# Default admin from ENV — required only on first bootstrap (no SuperAdmin user yet).
+# Redeployments often omit these; do not fail at import time (see create_admin_user).
+DEFAULT_ADMIN_EMAIL = (os.environ.get("DEFAULT_ADMIN_EMAIL") or "").strip()
+DEFAULT_ADMIN_PASSWORD = os.environ.get("DEFAULT_ADMIN_PASSWORD") or ""
 
 # Migration version
 MIGRATION_VERSION = "3.0.0"
@@ -342,18 +333,38 @@ async def create_admin_user(db, role):
     Create or update the SINGLE SuperAdmin user from ENV variables.
     - Finds SuperAdmin by ROLE (not email) to ensure only 1 exists
     - Updates both email and password if they change
+    - On redeploy, DEFAULT_ADMIN_* may be unset if the host does not inject .env;
+      if a SuperAdmin user already exists, bootstrap is skipped (no error).
     """
     print("Setting up SuperAdmin user...")
-    
-    # Validate password strength
+
+    # Find existing SuperAdmin by ROLE (not email) - ensures only 1 SuperAdmin
+    existing = await db.users.find_one({"role_id": role["id"]})
+
+    missing_email = not DEFAULT_ADMIN_EMAIL
+    missing_password = not DEFAULT_ADMIN_PASSWORD
+    if missing_email or missing_password:
+        if existing:
+            print(
+                "  DEFAULT_ADMIN_EMAIL / DEFAULT_ADMIN_PASSWORD not set — "
+                "SuperAdmin already exists; skipping user bootstrap (OK for redeploy)."
+            )
+            return
+        print("ERROR: First-time setup requires both environment variables:")
+        if missing_email:
+            print("  - DEFAULT_ADMIN_EMAIL (non-empty)")
+        if missing_password:
+            print("  - DEFAULT_ADMIN_PASSWORD (non-empty, see strength rules below)")
+        print("Set them in your host panel, .env, or docker-compose `environment` for migrate.")
+        print("Password must have: 12+ chars, uppercase, digit, special character.")
+        sys.exit(1)
+
+    # Validate password strength when we will create or compare/update from ENV
     is_valid, errors = validate_password_strength(DEFAULT_ADMIN_PASSWORD)
     if not is_valid:
         print("ERROR: DEFAULT_ADMIN_PASSWORD does not meet requirements:")
         print(f"       Needs {', '.join(errors)}")
         sys.exit(1)
-    
-    # Find existing SuperAdmin by ROLE (not email) - ensures only 1 SuperAdmin
-    existing = await db.users.find_one({"role_id": role["id"]})
     
     if existing:
         old_email = existing.get('email')

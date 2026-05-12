@@ -26,6 +26,8 @@ services:
   migrate:
     build: ./backend
     container_name: finflow-migrate
+    # First deploy only: set DEFAULT_ADMIN_EMAIL and DEFAULT_ADMIN_PASSWORD (12+ chars,
+    # uppercase, digit, special char). Redeploys can omit them if the DB volume already has a SuperAdmin.
     environment:
       - MONGO_URL=mongodb://mongo:27017
       - DB_NAME=${DB_NAME:-finflow}
